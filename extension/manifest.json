@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "TubeScript",
+  "version": "1.0",
+  "description": "Extract YouTube transcripts and generate AI summaries instantly.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "TubeScript"
+  },
+  "permissions": [
+    "activeTab",
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.youtube.com/*"
+  ]
+}

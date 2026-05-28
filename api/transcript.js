@@ -201,6 +201,15 @@ async function getTranscriptFromPackage(videoId, videoUrl, language) {
 }
 
 export default async function handler(request, response) {
+  // CORS configuration
+  response.setHeader('Access-Control-Allow-Origin', '*');
+  response.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS, POST');
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (request.method === 'OPTIONS') {
+    return response.status(200).end();
+  }
+
   if (request.method !== 'POST') {
     response.setHeader('Allow', 'POST');
     return response.status(405).json({ error: 'Only POST requests are supported.' });

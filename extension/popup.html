@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TubeScript</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">TubeScript</div>
+      <div class="status" id="status-text">Ready</div>
+    </header>
+
+    <div class="workspace">
+      <!-- Error or non-youtube state -->
+      <div id="error-view" class="view hidden">
+        <p id="error-message">Please open a YouTube video to use TubeScript.</p>
+      </div>
+
+      <!-- Action State -->
+      <div id="action-view" class="view">
+        <h3 id="video-title">Analyzing...</h3>
+        <p id="video-url"></p>
+        
+        <div class="input-group">
+          <label>Language</label>
+          <select id="language-select">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </div>
+
+        <button id="btn-generate" class="primary-btn">Extract Transcript</button>
+      </div>
+
+      <!-- Result State -->
+      <div id="result-view" class="view hidden">
+        <div class="top-actions">
+          <button id="btn-copy-text" class="action-btn">Copy Text</button>
+          <button id="btn-copy-time" class="action-btn">Copy w/ Time</button>
+          <button id="btn-summarize" class="action-btn highlight">Summarize</button>
+        </div>
+
+        <div class="transcript-panel">
+          <div id="segments-container"></div>
+        </div>
+
+        <div id="summary-box" class="summary-box hidden">
+          <div class="summary-header">
+            <h4>AI Summary</h4>
+            <button id="btn-copy-summary" class="action-btn small">Copy</button>
+          </div>
+          <div id="summary-content" class="summary-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
