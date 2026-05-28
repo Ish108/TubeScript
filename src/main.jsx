@@ -321,6 +321,14 @@ function App() {
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSegmentId, setActiveSegmentId] = useState(null);
+  
+  // Summary State
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+
+  useEffect(() => {
+    setSummary(null);
+  }, [result]);
 
   const detectedVideoId = useMemo(() => parseVideoId(url), [url]);
   const tierInfo = useMemo(() => getTierInfo(profile, session), [profile, session]);
@@ -469,9 +477,37 @@ function App() {
     setMessage('');
   }
 
-  async function copyTranscript() {
+  async function copyTranscript(withTimestamps = false) {
     if (!result?.transcript) return;
-    await navigator.clipboard.writeText(result.transcript);
+    let textToCopy = result.transcript;
+    if (withTimestamps) {
+      textToCopy = segments.map(seg => `[${seg.time}] ${seg.text}`).join('\n');
+    }
+    await navigator.clipboard.writeText(textToCopy);
+  }
+
+  async function generateSummary() {
+    if (!result?.transcript) return;
+    setSummaryLoading(true);
+    try {
+      const response = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ transcript: result.transcript })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+      setSummary(data.summary);
+    } catch (error) {
+      alert("Error generating summary: " + error.message);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }
+
+  async function copySummary() {
+    if (!summary) return;
+    await navigator.clipboard.writeText(summary);
   }
 
   function downloadPDF() {
@@ -582,14 +618,17 @@ function App() {
               </div>
               
               <div className="top-actions">
-                <button className="action-btn" onClick={copyTranscript} disabled={!result}>
-                  <Copy size={16} /> Copy Transcript
+                <button className="action-btn" onClick={() => copyTranscript(false)} disabled={!result}>
+                  <Copy size={16} /> Copy Text
+                </button>
+                <button className="action-btn" onClick={() => copyTranscript(true)} disabled={!result}>
+                  <Clock3 size={16} /> Copy Timestamps
                 </button>
                 <button className="action-btn" onClick={downloadPDF} disabled={!result}>
                   <Download size={16} /> Download PDF
                 </button>
-                <button className="action-btn primary" disabled={!result}>
-                  <Sparkles size={16} /> Summarize
+                <button className="action-btn primary" onClick={generateSummary} disabled={!result || summaryLoading}>
+                  {summaryLoading ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />} Summarize
                 </button>
               </div>
             </header>
@@ -707,6 +746,20 @@ function App() {
                     ))
                   )}
                 </div>
+
+                {summary && (
+                  <div className="summary-box">
+                    <div className="summary-header">
+                      <h3><Sparkles size={16}/> AI Summary</h3>
+                      <button className="action-btn" onClick={copySummary} title="Copy Summary">
+                        <Copy size={14}/> Copy
+                      </button>
+                    </div>
+                    <div className="summary-content">
+                      {summary}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </>
