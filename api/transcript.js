@@ -160,7 +160,14 @@ function getActorError(item) {
 }
 
 function friendlyTranscriptError(message) {
-  if (/requires login|age-restricted|private/i.test(message)) {
+  if (!message) return 'No captions were found for this video. Try another video or one with captions enabled.';
+
+  // If the message is our own hardcoded fallback string, don't mistakenly classify it as a login error
+  if (message.includes('No transcript text was found. This video may have no captions, may be private, or may require login.')) {
+    return 'No captions were found for this video. It may be private, age-restricted, or have captions disabled.';
+  }
+
+  if (/requires login|age-restricted/i.test(message)) {
     return 'This video requires YouTube login or is private/age-restricted, so public transcript extraction is blocked. Try a public video with captions.';
   }
 
@@ -218,8 +225,8 @@ export default async function handler(request, response) {
   const token = process.env.APIFY_TOKEN;
   const actorId = process.env.APIFY_ACTOR_ID || DEFAULT_ACTOR_ID;
 
-  if (!token) {
-    return response.status(500).json({ error: 'APIFY_TOKEN is missing from server environment variables.' });
+  if (!token || token.includes('your_apify_api_token')) {
+    return response.status(500).json({ error: 'Please set your actual APIFY_TOKEN in .env and RESTART your dev server (npm run dev).' });
   }
 
   const { url, language = 'en' } = request.body || {};
@@ -249,12 +256,15 @@ export default async function handler(request, response) {
 
   try {
     const apifyResponse = await runApify(apiUrl, input, token);
+    console.log('[DEBUG] apifyResponse:', apifyResponse);
     const { data } = apifyResponse;
 
     if (!apifyResponse.ok) {
+      console.error('[DEBUG] Apify failed with status:', apifyResponse.status, data);
       const fallback = await getTranscriptFromPackage(videoId, url, language).catch((fallbackError) => ({
         fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
       }));
+      console.log('[DEBUG] fallback from apifyResponse !ok:', fallback);
 
       if (fallback?.transcript) {
         return response.status(200).json(fallback);
@@ -273,15 +283,18 @@ export default async function handler(request, response) {
     const item = items.find((entry) => getTranscriptText(entry)) || items[0];
 
     if (!item) {
+      console.error('[DEBUG] No item found in Apify response');
       return response.status(404).json({ error: 'No transcript result was returned for this video.' });
     }
 
     const result = normalizeItem(item, videoId, url, language);
     if (!result.transcript) {
       const actorError = getActorError(item);
+      console.error('[DEBUG] Result has no transcript. actorError:', actorError);
       const fallback = await getTranscriptFromPackage(videoId, url, language).catch((fallbackError) => ({
         fallbackError: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
       }));
+      console.log('[DEBUG] fallback from empty transcript:', fallback);
 
       if (fallback?.transcript) {
         return response.status(200).json(fallback);

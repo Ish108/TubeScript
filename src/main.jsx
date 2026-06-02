@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { getTierInfo } from './tierConfig';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import './styles.css';
 
 function parseVideoId(value = '') {
@@ -55,11 +55,14 @@ function getSegments(result) {
   if (!result) return [];
   
   if (result.raw?.segments && Array.isArray(result.raw.segments)) {
-    return result.raw.segments.map((seg, i) => ({
-      id: i,
-      time: formatTime(seg.offset || seg.start || 0),
-      text: seg.text || seg.caption || seg.content || '',
-    })).filter(seg => seg.text.trim());
+    return result.raw.segments.map((seg, i) => {
+      let rawOffset = seg.offset !== undefined ? seg.offset : (seg.start || 0);
+      return {
+        id: i,
+        time: formatTime(rawOffset / 1000),
+        text: seg.text || seg.caption || seg.content || '',
+      };
+    }).filter(seg => seg.text.trim());
   }
 
   const sentences = result.transcript.match(/[^.!?]+[.!?]+[\s]*/g) || [result.transcript];
@@ -90,10 +93,16 @@ function AuthPanel({ onClose }) {
 
     const action =
       mode === 'signup'
-        ? supabase.auth.signUp({ email, password })
+        ? supabase.auth.signUp({ 
+            email, 
+            password,
+            options: {
+              emailRedirectTo: window.location.origin
+            }
+          })
         : supabase.auth.signInWithPassword({ email, password });
 
-    const { error } = await action;
+    const { data, error } = await action;
     setLoading(false);
 
     if (error) {
@@ -101,8 +110,18 @@ function AuthPanel({ onClose }) {
       return;
     }
 
-    setStatus(mode === 'signup' ? 'Check your email if confirmation is enabled.' : 'Logged in successfully.');
-    if (mode === 'login') onClose();
+    if (mode === 'signup') {
+      // If session is null after signup, email confirmation is required
+      if (!data.session) {
+        setStatus('Account created! Please check your email to verify your account before logging in.');
+      } else {
+        setStatus('Account created successfully!');
+        onClose();
+      }
+    } else {
+      setStatus('Logged in successfully.');
+      onClose();
+    }
   }
 
   return (
@@ -510,7 +529,7 @@ function App() {
     await navigator.clipboard.writeText(summary);
   }
 
-  function downloadPDF() {
+  function downloadPDF(withTimestamps = true) {
     if (!result?.transcript) return;
     
     const doc = new jsPDF();
@@ -537,7 +556,7 @@ function App() {
     doc.setFontSize(11);
     
     segments.forEach(seg => {
-      const text = `[${seg.time}] ${seg.text}`;
+      const text = withTimestamps ? `[${seg.time}] ${seg.text}` : seg.text;
       const lines = doc.splitTextToSize(text, maxLineWidth);
       
       // Check page break
@@ -618,14 +637,17 @@ function App() {
               </div>
               
               <div className="top-actions">
-                <button className="action-btn" onClick={() => copyTranscript(false)} disabled={!result}>
+                <button className="action-btn" onClick={() => copyTranscript(false)} disabled={!result} title="Copy Text Only">
                   <Copy size={16} /> Copy Text
                 </button>
-                <button className="action-btn" onClick={() => copyTranscript(true)} disabled={!result}>
-                  <Clock3 size={16} /> Copy Timestamps
+                <button className="action-btn" onClick={() => copyTranscript(true)} disabled={!result} title="Copy with Timestamps">
+                  <Clock3 size={16} /> Copy Time
                 </button>
-                <button className="action-btn" onClick={downloadPDF} disabled={!result}>
-                  <Download size={16} /> Download PDF
+                <button className="action-btn" onClick={() => downloadPDF(false)} disabled={!result} title="Download PDF Text Only">
+                  <Download size={16} /> PDF Text
+                </button>
+                <button className="action-btn" onClick={() => downloadPDF(true)} disabled={!result} title="Download PDF with Timestamps">
+                  <Download size={16} /> PDF Time
                 </button>
                 <button className="action-btn primary" onClick={generateSummary} disabled={!result || summaryLoading}>
                   {summaryLoading ? <Loader2 className="spin" size={16} /> : <Sparkles size={16} />} Summarize

@@ -1,5 +1,5 @@
 // Configuration: Set this to your live Vercel URL when deploying to production!
-const API_BASE = 'http://localhost:5173';
+const API_BASE = 'http://127.0.0.1:5173';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const errorView = document.getElementById('error-view');
